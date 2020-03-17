@@ -3,6 +3,7 @@
 #include <lib/bfuzz_config.h>
 #include <lib/differential.h>
 #include <lib/go.h>
+#include <lib/java.h>
 #include <lib/nim.h>
 #include <lib/python.h>
 #include <lib/rust.h>
@@ -119,6 +120,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
       TRINITY_VENV_PATH, fuzzing::config::disable_bls));
   differential->AddModule(std::make_shared<fuzzing::Lighthouse>());
   differential->AddModule(std::make_shared<fuzzing::Nimbus>());
+  differential->AddModule(std::make_shared<fuzzing::Java>());
 
   return 0;
 }

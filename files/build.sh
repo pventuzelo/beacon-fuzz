@@ -65,6 +65,17 @@ export TRINITY_VENV_PATH="/eth2/trinity/venv"
 # Now any script run with the python executable below will have access to trinity
 export TRINITY_BIN_PATH="$TRINITY_VENV_PATH"/bin/python3
 
+# Teku
+cd /eth2/teku || exit
+# This should be a NOOP unless files have changed since the docker image was created
+./gradlew installDist -x test --stacktrace
+# TODO get classpath from teku shell script
+# TODO portable JDK_DIR
+export JDK_DIR=/usr/lib/jvm/java-11-openjdk-amd64
+export JAVA_CXXFLAGS="-I\"$JDK_DIR/include\" -I\"$JDK_DIR/include/linux\""
+export JAVA_LDFLAGS="-L\"$JDK_DIR/lib\" -L\"$JDK_DIR/lib/server\""
+export JAVA_LDLIBS="-ljvm -Wl,-R\"$JDK_DIR/lib/server\""
+
 cd /eth2 || exit
 
 # Set env variables for using Golang
@@ -74,7 +85,6 @@ export PATH="$GOROOT/bin:$PATH"
 export GO111MODULE="off" # not supported by go-fuzz, keep it off unless explicitly enabled
 
 # Nimbus
-
 # TODO change back to official branch & repo
 git clone --branch libnfuzz https://github.com/gnattishness/nim-beacon-chain.git /eth2/nim-beacon-chain
 cd /eth2/nim-beacon-chain || exit
@@ -103,7 +113,7 @@ PATH="$EXTRA_NIM_PATH:$PATH" \
 export NIM_LDFLAGS="-L/eth2/nim-beacon-chain/build/"
 export NIM_LDLIBS="-lnfuzz -lrocksdb -lpcre"
 # TODO(gnattishness) why use nfuzz/libnfuzz.h over nimcache/libnfuzz_static/libnfuzz.h (generated via --header)?
-export NIM_CPPFLAGS="-I/eth2/nim-beacon-chain/nfuzz"
+export NIM_CXXFLAGS="-I/eth2/nim-beacon-chain/nfuzz"
 
 cd /eth2/lib || exit
 # NOTE this doesn't depend on any GOPATH
