@@ -1,5 +1,4 @@
 #define GO_FUZZ_PREFIX shuffle_
-#include <assert.h>
 #include <lib/bfuzz_config.h>
 #include <lib/differential.h>
 #include <lib/go.h>
@@ -9,6 +8,7 @@
 #include <lib/rust.h>
 #include <lib/util.h>
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>

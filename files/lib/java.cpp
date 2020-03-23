@@ -45,7 +45,8 @@ class Java::Impl {
 
     fuzzClass = env->FindClass(fuzzClassName.data());
     if (fuzzClass == nullptr) {
-      printf("Fatal: Unable to locate %s class\n", fuzzClassName.data());
+      printf("Fatal: Unable to load %s class definition\n",
+             fuzzClassName.data());
       env->ExceptionDescribe();
       abort();
     }
