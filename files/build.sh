@@ -24,7 +24,7 @@ make install
 
 cd /eth2 || exit
 # Get eth2.0-specs
-git clone --depth 1 --branch v0.9.1 https://github.com/ethereum/eth2.0-specs.git
+git clone --depth 1 --branch v0.10.1 https://github.com/ethereum/eth2.0-specs.git
 # TODO quote here?
 ETH2_SPECS_PATH=$(realpath eth2.0-specs/)
 # TODO do we care about this?
@@ -52,18 +52,18 @@ export PY_SPEC_BIN_PATH="$PY_SPEC_VENV_PATH"/bin/python3
 # as any modifications to the pyspec occur at runtime (monkey patching), its
 # ok to have a centralized pyspec codebase for all fuzzing targets
 
-# TODO specify Trinity tag/branch
-git clone --branch master https://github.com/ethereum/trinity.git /eth2/trinity
-cd /eth2/trinity || exit
-git checkout fcea7124effca010db62bd41a24dd7975825ba90 || exit
-export TRINITY_VENV_PATH="/eth2/trinity/venv"
-# NOTE: potential risk of not fully upgrading if already exists, but should be fine
-# Way quicker to avoid rebuilding every time
-"$CPYTHON_INSTALL_PATH"/bin/python3 -m venv "$TRINITY_VENV_PATH"
-"$TRINITY_VENV_PATH"/bin/pip install --upgrade pip
-"$TRINITY_VENV_PATH"/bin/pip install --upgrade .
-# Now any script run with the python executable below will have access to trinity
-export TRINITY_BIN_PATH="$TRINITY_VENV_PATH"/bin/python3
+# Trinity is currently on spec v0.9.4, TODO re-enable when compliant with v0.10.1
+#git clone --branch master https://github.com/ethereum/trinity.git /eth2/trinity
+#cd /eth2/trinity || exit
+#git checkout fcea7124effca010db62bd41a24dd7975825ba90 || exit
+#export TRINITY_VENV_PATH="/eth2/trinity/venv"
+## NOTE: potential risk of not fully upgrading if already exists, but should be fine
+## Way quicker to avoid rebuilding every time
+#"$CPYTHON_INSTALL_PATH"/bin/python3 -m venv "$TRINITY_VENV_PATH"
+#"$TRINITY_VENV_PATH"/bin/pip install --upgrade pip
+#"$TRINITY_VENV_PATH"/bin/pip install --upgrade .
+## Now any script run with the python executable below will have access to trinity
+#export TRINITY_BIN_PATH="$TRINITY_VENV_PATH"/bin/python3
 
 cd /eth2 || exit
 
@@ -75,8 +75,10 @@ export GO111MODULE="off" # not supported by go-fuzz, keep it off unless explicit
 
 # Nimbus
 
-# TODO change back to official branch & repo
-git clone --branch libnfuzz https://github.com/gnattishness/nim-beacon-chain.git /eth2/nim-beacon-chain
+git clone --branch master https://github.com/status-im/nim-beacon-chain.git /eth2/nim-beacon-chain
+# commit before "initial 0.11.0 spec version update"
+git checkout 33687c3e412e7104288720ceba1360e21b340fc0 || exit
+# TODO could also be 68f166800d57cb10300c0945542616c6eb19b0e1 (before they updated test vectors)
 cd /eth2/nim-beacon-chain || exit
 make build-system-checks
 # Nim staticlib call uses llvm-ar and doesn't look like it can be changed
@@ -118,7 +120,7 @@ rm -rf "$ZRNT_GOPATH"
 rm -rf "$ZRNT_TMP"
 mkdir -p "$ZRNT_TMP"
 cd "$ZRNT_TMP" || exit
-git clone --depth 1 --branch v0.9.1 https://github.com/protolambda/zrnt.git
+git clone --depth 1 --branch v0.10.1 https://github.com/protolambda/zrnt.git
 cd zrnt || exit
 # TODO variables for relevant spec release and tags - a manifest file?
 
