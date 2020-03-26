@@ -38,11 +38,11 @@ export PY_SPEC_VENV_PATH="$ETH2_SPECS_PATH"/venv
 # Way quicker to avoid rebuilding every time
 "$CPYTHON_INSTALL_PATH"/bin/python3 -m venv "$PY_SPEC_VENV_PATH"
 "$PY_SPEC_VENV_PATH"/bin/pip install --upgrade pip
-cd "$ETH2_SPECS_PATH"/test_libs/pyspec || exit
+cd "$ETH2_SPECS_PATH"/tests/core/pyspec || exit
 # don't need to use requirements.py as the setup.py contains pinned dependencies
 # TODO use editable install "-e ." once editable venvs are supported
 "$PY_SPEC_VENV_PATH"/bin/pip install --upgrade .
-cd "$ETH2_SPECS_PATH"/test_libs/config_helpers || exit
+cd "$ETH2_SPECS_PATH"/tests/core/config_helpers || exit
 # TODO use editable install "-e ." once editable venvs are supported
 "$PY_SPEC_VENV_PATH"/bin/pip install --upgrade .
 
@@ -76,10 +76,10 @@ export GO111MODULE="off" # not supported by go-fuzz, keep it off unless explicit
 # Nimbus
 
 git clone --branch master https://github.com/status-im/nim-beacon-chain.git /eth2/nim-beacon-chain
+cd /eth2/nim-beacon-chain || exit
 # commit before "initial 0.11.0 spec version update"
 git checkout 33687c3e412e7104288720ceba1360e21b340fc0 || exit
 # TODO could also be 68f166800d57cb10300c0945542616c6eb19b0e1 (before they updated test vectors)
-cd /eth2/nim-beacon-chain || exit
 make build-system-checks
 # Nim staticlib call uses llvm-ar and doesn't look like it can be changed
 # https://github.com/nim-lang/Nim/blob/7e747d11c66405f08cc7c69e5afc18348663275e/compiler/extccomp.nim#L128
