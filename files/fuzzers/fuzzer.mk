@@ -101,7 +101,7 @@ all: fuzzer
 zrnt.a : zrnt/fuzz.go
 	test -x $(GO_FUZZ_BUILD_PATH)
 	cd zrnt && \
-		$(GO_FUZZ_BUILD_PATH) -tags 'preset_mainnet$(if $(BFUZZ_NO_DISABLE_BLS),, bls_off)' \
+		GO111MODULE=on $(GO_FUZZ_BUILD_PATH) -tags 'preset_mainnet$(if $(BFUZZ_NO_DISABLE_BLS),, bls_off)' \
 		-libfuzzer-prefix=$(zrnt_prefix) -libfuzzer-ex \
 		-o ../zrnt.a .
 
@@ -133,7 +133,7 @@ lighthouse.a : lighthouse $(lighthouse_dir_contents) $(CARGO_CONFIG_PATH)
 
 fuzzer.o : CPPFLAGS += $(NIM_CPPFLAGS)
 fuzzer.o : fuzzer.cpp
-	test -d $(TRINITY_VENV_PATH)
+	#test -d $(TRINITY_VENV_PATH)
 	test -d $(PY_SPEC_VENV_PATH)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS)\
 		$(if $(BFUZZ_NO_DISABLE_BLS),-DBFUZZ_NO_DISABLE_BLS=1)\
