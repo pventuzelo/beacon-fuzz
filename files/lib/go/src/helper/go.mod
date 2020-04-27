@@ -1,6 +1,6 @@
 module helper
 
-go 1.12
+go 1.14
 
 require (
     github.com/protolambda/zrnt v0.10.1

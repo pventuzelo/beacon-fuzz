@@ -107,7 +107,11 @@ all: fuzzer
 
 libzrnt.so : zrnt/fuzz.go zrnt/main.go
 	cd zrnt && \
-		GO111MODULE=on go build -tags 'preset_mainnet$(if $(BFUZZ_NO_DISABLE_BLS),, bls_off)' \
+		GO111MODULE=on go build \
+		-gcflags all=-d=libfuzzer \
+		-gcflags syscall=-d=libfuzzer=0 -trimpath \
+		-gcflags -fPIC \
+		-tags 'preset_mainnet$(if $(BFUZZ_NO_DISABLE_BLS),, bls_off)' \
 		-buildmode=c-shared \
 		-o ../libzrnt.so main.go fuzz.go
 
@@ -141,8 +145,8 @@ fuzzer.o : CPPFLAGS += $(NIM_CPPFLAGS)
 fuzzer.o : fuzzer.cpp
 	#test -d $(TRINITY_VENV_PATH)
 	test -d $(PY_SPEC_VENV_PATH)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS)\
-		$(if $(BFUZZ_NO_DISABLE_BLS),-DBFUZZ_NO_DISABLE_BLS=1)\
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
+		$(if $(BFUZZ_NO_DISABLE_BLS),-DBFUZZ_NO_DISABLE_BLS=1) \
 	    -DPY_SPEC_HARNESS_PATH="\"$(PY_SPEC_HARNESS_PATH)\"" \
 	    -DPY_SPEC_VENV_PATH="\"$(PY_SPEC_VENV_PATH)\"" \
 	    -DTRINITY_HARNESS_PATH="\"$(TRINITY_HARNESS_PATH)\"" \
