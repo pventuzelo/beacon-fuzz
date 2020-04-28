@@ -105,15 +105,14 @@ all: fuzzer
 #		-libfuzzer-prefix=$(zrnt_prefix) -libfuzzer-ex \
 #		-o ../zrnt.a .
 
-libzrnt.so : zrnt/fuzz.go zrnt/main.go
+zrnt.a : zrnt/fuzz.go zrnt/main.go
 	cd zrnt && \
 		GO111MODULE=on go build \
 		-gcflags all=-d=libfuzzer \
 		-gcflags syscall=-d=libfuzzer=0 -trimpath \
-		-gcflags -fPIC \
-		-tags 'preset_mainnet$(if $(BFUZZ_NO_DISABLE_BLS),, bls_off)' \
-		-buildmode=c-shared \
-		-o ../libzrnt.so main.go fuzz.go
+		-tags 'gofuzz gofuzz_libfuzzer libfuzzer preset_mainnet$(if $(BFUZZ_NO_DISABLE_BLS),, bls_off)' \
+		-buildmode=c-archive \
+		-o ../zrnt.a main.go fuzz.go
 
 lighthouse.a : lighthouse $(lighthouse_dir_contents) $(CARGO_CONFIG_PATH)
 	rm -rf lighthouse.a
@@ -153,11 +152,11 @@ fuzzer.o : fuzzer.cpp
 	    -DTRINITY_VENV_PATH="\"$(TRINITY_VENV_PATH)\"" \
 		-c fuzzer.cpp -o fuzzer.o
 
-fuzzer : LDFLAGS += $(NIM_LDFLAGS) -L"$(here)" -Wl,-rpath,"$(here)"
-fuzzer : LDLIBS += -lzrnt $(NIM_LDLIBS)
-fuzzer : fuzzer.o libzrnt.so lighthouse.a
+fuzzer : LDFLAGS += $(NIM_LDFLAGS)
+fuzzer : LDLIBS += $(NIM_LDLIBS)
+fuzzer : fuzzer.o zrnt.a lighthouse.a
 	$(CXX) -fsanitize=fuzzer \
-	    fuzzer.o lighthouse.a \
+	    fuzzer.o lighthouse.a zrnt.a \
 	    $(LDFLAGS) $(LDLIBS) $(PYTHON_LDFLAGS) -o fuzzer
 
 clean:
