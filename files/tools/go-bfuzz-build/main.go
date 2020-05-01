@@ -24,15 +24,38 @@ import (
 
 var (
 	flagTags     = flag.String("tags", "", "a comma-separated list of build tags to consider satisfied during the build.")
-	flagOut      = flag.String("o", "", "output file. (default [pkg]-fuzz.a)")
+	flagOut      = flag.String("o", "", "output file. (default [pkgName]-fuzz.a)")
 	flagFunc     = flag.String("func", "Fuzz", "preferred entry function.")
-	flagWork     = flag.Bool("work", false, "print the name of the temporary work directory and do not delete it when exiting.")
+	flagWork     = flag.Bool("work", false, "do not delete generated main file.\nprint the name of the temporary work directory and do not delete it when exiting.")
 	flagRace     = flag.Bool("race", false, "enable race detection.")
 	flagX        = flag.Bool("x", false, "print the commands.")
 	flagV        = flag.Bool("v", false, "verbose build.")
 	flagPreserve = flag.String("preserve", "", "a comma-separated list of import paths not to instrument.")
 	// TODO flags wthether to instrument main and runtime? ignore by default
 )
+
+type Exit struct{ Code int }
+
+// exit code handler thanks https://stackoverflow.com/a/27630092
+func handleExit() {
+	if e := recover(); e != nil {
+		if exit, ok := e.(Exit); ok == true {
+			os.Exit(exit.Code)
+		}
+		panic(e) // not an Exit, bubble up
+	}
+}
+
+// Because log.Fatal calls os.Exit(1) and doesn't respect defers
+func SafeLogFatal(v ...interface{}) {
+	log.Print(v)
+	panic(Exit{1})
+}
+
+func SafeLogFatalf(format string, v ...interface{}) {
+	log.Printf(format, v)
+	panic(Exit{1})
+}
 
 func getTags(userTags *string) string {
 	tags := "gofuzz,gofuzz_libfuzzer,libfuzzer"
@@ -63,6 +86,8 @@ func basePackagesConfig() *packages.Config {
 }
 
 func main() {
+	defer handleExit()
+
 	flag.Usage = func() {
 		usageStr := "Usage: %s [options] [pkg_or_module]\n\n" +
 			"pkg default: \".\"\n" +
@@ -72,12 +97,11 @@ func main() {
 
 		flag.PrintDefaults()
 	}
-
 	flag.Parse()
 
 	if flag.NArg() > 1 {
 		flag.Usage()
-		os.Exit(1)
+		panic(Exit{1})
 	}
 
 	path := "."
@@ -85,11 +109,11 @@ func main() {
 		path = flag.Arg(0)
 	}
 	if strings.Contains(path, "...") {
-		log.Fatal("package path must not contain ... wildcards")
+		SafeLogFatal("package path must not contain ... wildcards")
 	}
 
 	if !isFuzzFuncName(*flagFunc) {
-		log.Fatalf("provided -func=%v, but %v is not a valid function name", *flagFunc, *flagFunc)
+		SafeLogFatalf("provided -func=%v, but %v is not a valid function name", *flagFunc, *flagFunc)
 	}
 
 	buildFlags := []string{
@@ -124,7 +148,7 @@ func main() {
 	// so will then have "main" and the pkg in the same dir?
 	mainFile, err := ioutil.TempFile(".", "main.*.go")
 	if err != nil {
-		log.Fatal("failed to create temporary file:", err)
+		SafeLogFatal("failed to create temporary file:", err)
 	}
 	if !*flagWork {
 		// TODO check that this is properly removed
@@ -140,10 +164,10 @@ func main() {
 		Func:    *flagFunc,
 	})
 	if err != nil {
-		log.Fatalf("failed to execute template: %v", err)
+		SafeLogFatalf("failed to execute template: %v", err)
 	}
 	if err := mainFile.Close(); err != nil {
-		log.Fatalf("couldn't close file: %v", err)
+		SafeLogFatalf("couldn't close file: %v", err)
 	}
 
 	out := *flagOut
@@ -159,7 +183,7 @@ func main() {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("failed to build packages: %v", err)
+		SafeLogFatalf("failed to build packages: %v", err)
 	}
 }
 
@@ -172,19 +196,19 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 		BuildFlags: buildFlags,
 	}, "pattern="+path)
 	if err != nil {
-		log.Fatalf("failed to load packages: %v", err)
+		SafeLogFatalf("failed to load packages: %v", err)
 	}
 	if packages.PrintErrors(pkgs) != 0 {
-		os.Exit(1)
+		panic(Exit{1})
 	}
 	if len(pkgs) != 1 {
 		// TODO might need to join strings
-		log.Fatalf("package path: %v matched multiple packages: %v", path, pkgs)
+		SafeLogFatalf("package path: %v matched multiple packages: %v", path, pkgs)
 	}
 	pkg := pkgs[0]
 
 	if pkg.Name == "main" {
-		log.Fatal("cannot fuzz package main")
+		SafeLogFatal("cannot fuzz package main")
 	}
 
 	return pkg
@@ -197,17 +221,17 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 		rescfg.BuildFlags = []string{"-tags", getTags()}
 		respkgs, err := packages.Load(rescfg, pkg)
 		if err != nil {
-			log.Fatalf("could not resolve package %q: %v", pkg, err)
+			SafeLogFatalf("could not resolve package %q: %v", pkg, err)
 		}
 		if len(respkgs) != 1 {
 			paths := make([]string, len(respkgs))
 			for i, p := range respkgs {
 				paths[i] = p.PkgPath
 			}
-			log.Fatalf("cannot build multiple packages, but %q resolved to: %v", pkg, strings.Join(paths, ", "))
+			SafeLogFatalf("cannot build multiple packages, but %q resolved to: %v", pkg, strings.Join(paths, ", "))
 		}
 		if respkgs[0].Name == "main" {
-			log.Fatal("cannot fuzz package main")
+			SafeLogFatal("cannot fuzz package main")
 		}
 		pkgpath := respkgs[0].PkgPath
 
@@ -232,12 +256,12 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 		}
 		initial, err := packages.Load(cfg, loadpkgs...)
 		if err != nil {
-			log.Fatalf("could not load packages: %v", err)
+			SafeLogFatalf("could not load packages: %v", err)
 		}
 
 		// Stop if any package had errors.
 		if packages.PrintErrors(initial) > 0 {
-			log.Fatalf("typechecking of %v failed", pkg)
+			SafeLogFatalf("typechecking of %v failed", pkg)
 		}
 
 		c.pkgs = initial
@@ -250,7 +274,7 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 			}
 		}
 		if c.fuzzpkg == nil {
-			log.Fatal("internal error: failed to find fuzz package; please file an issue")
+			SafeLogFatal("internal error: failed to find fuzz package; please file an issue")
 		}
 
 		// Find all fuzz functions in fuzzpkg.
@@ -265,7 +289,7 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 			sig, ok := typ.(*types.Signature)
 			if !ok || sig.Variadic() || !isFuzzSig(sig) {
 				if n == *flagFunc {
-					log.Fatalf("provided -func=%v, but %v is not a fuzz function", *flagFunc, *flagFunc)
+					SafeLogFatalf("provided -func=%v, but %v is not a fuzz function", *flagFunc, *flagFunc)
 				}
 				continue
 			}
@@ -275,17 +299,17 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 		}
 
 		if len(c.allFuncs) == 0 {
-			log.Fatalf("could not find any fuzz functions in %v", c.fuzzpkg.PkgPath)
+			SafeLogFatalf("could not find any fuzz functions in %v", c.fuzzpkg.PkgPath)
 		}
 		if len(c.allFuncs) > 255 {
-			log.Fatalf("go-fuzz-build supports a maximum of 255 fuzz functions, found %v; please file an issue", len(c.allFuncs))
+			SafeLogFatalf("go-fuzz-build supports a maximum of 255 fuzz functions, found %v; please file an issue", len(c.allFuncs))
 		}
 
 		if *flagFunc != "" {
 			// Specific fuzz function requested.
 			// If the requested function doesn't exist, fail.
 			if !foundFlagFunc {
-				log.Fatalf("could not find fuzz function %v in %v", *flagFunc, c.fuzzpkg.PkgPath)
+				SafeLogFatalf("could not find fuzz function %v in %v", *flagFunc, c.fuzzpkg.PkgPath)
 			}
 		} else {
 			// No specific fuzz function requested.
@@ -296,7 +320,7 @@ func loadPkg(path string, buildFlags []string) *packages.Package {
 			if len(c.allFuncs) == 1 {
 				*flagFunc = c.allFuncs[0]
 			} else if *flagLibFuzzer {
-				log.Fatalf("must specify a fuzz function with -libfuzzer, found: %v", strings.Join(c.allFuncs, ", "))
+				SafeLogFatalf("must specify a fuzz function with -libfuzzer, found: %v", strings.Join(c.allFuncs, ", "))
 			}
 		}
 	*/
