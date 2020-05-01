@@ -9,6 +9,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"go/token"
 	"go/types"
 	"io/ioutil"
@@ -23,8 +24,8 @@ import (
 
 var (
 	flagTags     = flag.String("tags", "", "a comma-separated list of build tags to consider satisfied during the build.")
-	flagOut      = flag.String("o", "", "output file. [pkg]-fuzz.a by default")
-	flagFunc     = flag.String("func", "Fuzz", "preferred entry function. \"Fuzz\" by default.")
+	flagOut      = flag.String("o", "", "output file. (default [pkg]-fuzz.a)")
+	flagFunc     = flag.String("func", "Fuzz", "preferred entry function.")
 	flagWork     = flag.Bool("work", false, "print the name of the temporary work directory and do not delete it when exiting.")
 	flagRace     = flag.Bool("race", false, "enable race detection.")
 	flagX        = flag.Bool("x", false, "print the commands.")
@@ -62,10 +63,21 @@ func basePackagesConfig() *packages.Config {
 }
 
 func main() {
+	flag.Usage = func() {
+		usageStr := "Usage: %s [options] [pkg_or_module]\n\n" +
+			"pkg default: \".\"\n" +
+			"Use module name to load go.mod dependencies correctly.\n\n" +
+			"Options:\n"
+		fmt.Fprintf(os.Stderr, usageStr, os.Args[0])
+
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	if flag.NArg() > 1 {
-		log.Fatal("usage: go-bfuzz-build [pkg]")
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	path := "."
