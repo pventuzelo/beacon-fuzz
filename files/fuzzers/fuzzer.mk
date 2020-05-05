@@ -69,7 +69,7 @@ lighthouse_dir_contents := $(shell find $(here)/lighthouse | sed 's/ /\\ /g')
 
 # the name of the current directory
 target_name ?= $(lastword $(subst /, ,$(realpath $(here))))
-zrnt_prefix ?= zrnt_
+zrnt_prefix ?= zrnt_$(target_name)_
 lighthouse_package_name ?= $(target_name)_fuzzer
 
 comma := ,
